@@ -1,4 +1,4 @@
-/* Roni: one front door for Home, Work, TTG, Calls and Steady.
+/* Roni: one front door for Home, Work, TTG, Calls, Torah and Steady.
    - It never replaces an app. Every tile opens the app at its own link, and each app's own server checks every request.
    - One personal link (#home=..&work=..&ttg=..&calls=..) signs this browser in to all four, using the same storage each app already uses.
    - A link that is not Roni's (a kid, or Kayla) only ever sees "This link only opens Home". It fails closed.
@@ -17,9 +17,9 @@
   /* 1) Take the one link once, store each key exactly where its app keeps it, then strip it from the address bar. */
   (function takeLink() {
     var h = location.hash.replace(/^#/, '');
-    if (!/(^|&)(home|work|ttg|calls)=/.test(h)) return;
+    if (!/(^|&)(home|work|ttg|calls|torah)=/.test(h)) return;
     var p = new URLSearchParams(h);
-    var home = p.get('home'), work = p.get('work'), ttg = p.get('ttg'), calls = p.get('calls');
+    var home = p.get('home'), work = p.get('work'), ttg = p.get('ttg'), calls = p.get('calls'), torah = p.get('torah');
     if (home && RXH.test(home)) {               // same steps as Home's own sign-in (pages/auth.js)
       var prevK = get('homeops.k');
       if (get('homeops.kskip') !== fnvq('homeops:' + home)) {
@@ -31,11 +31,12 @@
     if (work && RX.test(work)) set('ttgr.k', work);                                              // same as Recruiting boot.js
     if (ttg && RX.test(ttg)) { if (get('ttgops.k') !== ttg) del('ttgops.cache'); set('ttgops.k', ttg); }   // same as TTG Ops boot.js
     if (calls && calls.length >= 8 && calls.length <= 200) set('calls.k', calls);                // same as Calls app.js
+    if (torah && RX.test(torah)) set('torah.k', torah);                                          // same as Torah Packets app.js
     del('hub.who');
     history.replaceState(null, '', location.pathname);
   })();
 
-  var K = { home: get('homeops.k'), work: get('ttgr.k'), ttg: get('ttgops.k'), calls: get('calls.k') };
+  var K = { home: get('homeops.k'), work: get('ttgr.k'), ttg: get('ttgops.k'), calls: get('calls.k'), torah: get('torah.k') };
   var app = document.getElementById('app');
   var state = { gate: 'loading', home: '', calls: '' };
 
@@ -56,6 +57,7 @@
     work: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M18 8v6M15 11h6"/></svg>',
     ttg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-9"/><path d="M12 12c-4 0-6-2.5-6-6 3.5 0 6 2 6 6Z"/><path d="M12 12c4 0 6-2.5 6-6-3.5 0-6 2-6 6Z"/></svg>',
     calls: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+    torah: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10 5 7 4.5 3 5v13c4-.5 7 0 9 1.5 2-1.5 5-2 9-1.5V5c-4-.5-7 0-9 1.5Z"/><path d="M12 6.5V19.5"/></svg>',
     steady: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M2 21h20"/><path d="M12 5V3M5.6 7.6 4.2 6.2M18.4 7.6l1.4-1.4"/></svg>'
   };
 
@@ -74,7 +76,7 @@
     if (state.gate === 'loading') { app.innerHTML = '<div class="top"><div class="brand"><div class="mark">R</div>Roni</div></div><div class="date">' + esc(today()) + '</div><h1>One moment.</h1>'; return; }
     if (state.gate === 'signin') {
       app.innerHTML = '<div class="top"><div class="brand"><div class="mark">R</div>Roni</div></div><div class="card"><h2>Open your personal link</h2>' +
-        '<p>Open your one link on this phone once. After that, Home, Work, TTG and Calls open without asking again.</p><p>Steady needs no sign-in. It lives on the phone.</p></div>';
+        '<p>Open your one link on this phone once. After that, Home, Work, TTG, Calls and Torah open without asking again.</p><p>Steady needs no sign-in. It lives on the phone.</p></div>';
       return;
     }
     if (state.gate === 'homeonly') {
@@ -91,6 +93,7 @@
       tile('work', 'Work', 'Recruiting', K.work ? 'Recruiting and Projects' : 'Open once with your link') +
       tile('ttg', 'TTG', 'TTG Ops', K.ttg ? 'Oversight workspace' : 'Open once with your link') +
       tile('calls', 'Calls', 'Katya Calls', callsHint, true) +
+      tile('torah', 'Torah', 'Torah Packets', K.torah ? 'Packets, uploads and print' : 'Open once with your link', true) +
       tile('steady', 'Steady', 'Opens on this phone', 'Private to this phone, no live count', true, 'button') +
       '</div>' +
       '<div class="links"><button class="lnk" data-act="copylink">Copy my one link</button></div>';
@@ -177,10 +180,11 @@
       if (K.work) parts.push('work=' + encodeURIComponent(K.work));
       if (K.ttg) parts.push('ttg=' + encodeURIComponent(K.ttg));
       if (K.calls) parts.push('calls=' + encodeURIComponent(K.calls));
+      if (K.torah) parts.push('torah=' + encodeURIComponent(K.torah));
       if (!parts.length) { toast('Open each app once with its link first'); return; }
       var link = location.origin + location.pathname + '#' + parts.join('&');
-      var missing = ['home', 'work', 'ttg', 'calls'].filter(function (x) { return !K[x]; });
-      var done = function () { toast(missing.length ? 'Copied. Not in it yet: ' + missing.join(', ') : 'Copied. Keep it private, it signs in all four.'); };
+      var missing = ['home', 'work', 'ttg', 'calls', 'torah'].filter(function (x) { return !K[x]; });
+      var done = function () { toast(missing.length ? 'Copied. Not in it yet: ' + missing.join(', ') : 'Copied. Keep it private, it signs in all five.'); };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, function () { toast('Could not copy on this browser'); });
       else toast('Could not copy on this browser');
       return;
