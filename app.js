@@ -59,11 +59,13 @@
     steady: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 0 1 16 0"/><path d="M2 21h20"/><path d="M12 5V3M5.6 7.6 4.2 6.2M18.4 7.6l1.4-1.4"/></svg>'
   };
 
+  /* A tile is the app's name plus one live status line. (sub and own are kept in the signature but no longer shown.) */
+  var CHEV = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>';
   function tile(id, name, sub, hint, own, tag) {
     var t = tag || 'a';
     var attrs = t === 'a' ? ' href="' + esc(C.APPS[id]) + '"' : ' type="button" data-act="' + id + '"';
-    return '<' + t + ' class="tile t-' + id + '"' + attrs + '><div class="ic">' + ICON[id] + '</div><div><div class="nm">' + esc(name) +
-      (own ? '<span class="ext">own app</span>' : '') + '</div><div class="sub">' + esc(sub) + '</div><div class="hint" data-hint="' + id + '">' + esc(hint) + '</div></div><div class="chev" aria-hidden="true">&rsaquo;</div></' + t + '>';
+    return '<' + t + ' class="tile t-' + id + '"' + attrs + '><div class="ic">' + ICON[id] + '</div><div><div class="nm">' + esc(name) + '</div>' +
+      '<div class="hint" data-hint="' + id + '">' + esc(hint) + '</div></div><div class="chev" aria-hidden="true">' + CHEV + '</div></' + t + '>';
   }
   function today() { return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
   function greet() { var h = new Date().getHours(); return h < 12 ? 'Good morning.' : h < 17 ? 'Good afternoon.' : 'Good evening.'; }
@@ -76,8 +78,9 @@
       return;
     }
     if (state.gate === 'homeonly') {
-      app.innerHTML = '<div class="card"><h2>This link only opens Home</h2>' +
-        '<p>Everything for you is in Home.</p><a class="btn home" href="' + esc(C.APPS.home) + '">Open Home</a></div>';
+      app.innerHTML = '<div class="top"><div class="brand"><div class="mark">R</div>Roni</div></div><div class="card gate"><h2>This phone opens Home</h2>' +
+        '<p>Tap below to go to your Home.</p><a class="btn home" href="' + esc(C.APPS.home) + '">Open Home</a>' +
+        (navigator.onLine === false ? '<p class="off">You\u2019re offline. Home still opens.</p>' : '') + '</div>';
       return;
     }
     var homeHint = state.home || (K.home ? 'Gafni House' : 'Open once with your link');
@@ -89,7 +92,7 @@
       tile('ttg', 'TTG', 'TTG Ops', K.ttg ? 'Oversight workspace' : 'Open once with your link') +
       tile('calls', 'Calls', 'Katya Calls', callsHint, true) +
       tile('steady', 'Steady', 'Opens on this phone', 'Private to this phone, no live count', true, 'button') +
-      '</div><div class="foot">Steady and Calls keep their own icons and links too. Opening them here goes to the same app.</div>' +
+      '</div>' +
       '<div class="links"><button class="lnk" data-act="copylink">Copy my one link</button></div>';
   }
   function hint(id, text) { var el = app.querySelector('[data-hint="' + id + '"]'); if (el) el.textContent = text; }
@@ -147,6 +150,8 @@
   }
   if (!K.home && !K.calls) settle();
   draw();
+  window.addEventListener('online', function () { if (state.gate === 'homeonly') draw(); });
+  window.addEventListener('offline', function () { if (state.gate === 'homeonly') draw(); });
 
   function toast(msg) { var d = document.createElement('div'); d.className = 'toast'; d.setAttribute('role', 'status'); d.textContent = msg; document.body.appendChild(d); setTimeout(function () { d.remove(); }, 2600); }
   function sheet(html) { var s = document.createElement('div'); s.className = 'sheet'; s.innerHTML = '<div class="card" role="dialog" aria-modal="true">' + html + '</div>'; s.addEventListener('click', function (e) { if (e.target === s || e.target.getAttribute('data-close') != null) s.remove(); }); document.body.appendChild(s); }
