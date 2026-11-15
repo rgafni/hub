@@ -122,14 +122,28 @@
       else if (j && (j.status === 401 || j.status === 403)) { homeWho = ''; K.home = ''; state.home = ''; }
     }).catch(function () {}).then(function () { homeDone = true; settle(); if (state.gate === 'roni') hint('home', state.home || 'Gafni House'); });
   }
+  var CARD_LABEL = { 'card:ttg:plan': 'Plan the day', 'card:ttg:meeting': 'Check in before a meeting', 'card:ttg:wrap': 'End of day wrap' };
+  function whenLabel(iso) {
+    var d = new Date(iso); if (isNaN(d)) return '';
+    var tz = 'America/New_York', day = function (x) { return x.toLocaleDateString('en-CA', { timeZone: tz }); }, now = new Date();
+    var lbl = day(d) === day(now) ? 'today' : day(d) === day(new Date(now.getTime() + 864e5)) ? 'tomorrow' : d.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short' });
+    return lbl + ' ' + d.toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
+  }
   if (K.calls) {
-    post(C.CALLS_API, { k: K.calls, a: 'boot' }).then(function (j) {
-      if (j && j.ok) {
-        callsWho = j.who || '';
-        var n = (j.outbox || []).filter(function (x) { return x.status === 'draft'; }).length;
-        state.calls = n ? plural(n, 'text waiting for your OK', 'texts waiting for your OK') : 'Calls, presets and history';
-      }
-    }).catch(function () {}).then(function () { callsDone = true; settle(); if (state.gate === 'roni') hint('calls', state.calls || 'Calls, presets and history'); });
+    var drafts = 0, next = '';
+    var boot = post(C.CALLS_API, { k: K.calls, a: 'boot' }).then(function (j) {
+      if (j && j.ok) { callsWho = j.who || ''; drafts = (j.outbox || []).filter(function (x) { return x.status === 'draft'; }).length; }
+    }).catch(function () {});
+    var list = !C.CALLS_NEXT ? Promise.resolve() : post(C.CALLS_API, { k: K.calls, a: 'callList' }).then(function (j) {   // Roni's key only; anything else answers 'not allowed'
+      if (!j || !j.ok) return;
+      var it = (j.scheduled || []).filter(function (x) { return x.status === 'scheduled' && +new Date(x.at) > Date.now(); }).sort(function (a, b) { return a.at < b.at ? -1 : 1; })[0];
+      if (it) next = 'Next call: ' + (CARD_LABEL[it.src] || it.label || 'Call') + ', ' + whenLabel(it.at);
+    }).catch(function () {});
+    Promise.all([boot, list]).then(function () {
+      var parts = []; if (next) parts.push(next); if (drafts) parts.push(plural(drafts, 'text to OK', 'texts to OK'));
+      state.calls = parts.join(' \u00b7 ') || 'Calls, presets and history';
+      callsDone = true; settle(); if (state.gate === 'roni') hint('calls', state.calls);
+    });
   }
   if (!K.home && !K.calls) settle();
   draw();
